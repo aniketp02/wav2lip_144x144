@@ -39,7 +39,7 @@ syncnet_mel_step_size = 16
 #initializing the wandb logs
 wandb.init(
     # Set the project where this run will be logged
-    project="syncnet-wav2lip_288x288",  
+    project="syncnet-wav2lip_144x144",  
     # Track hyperparameters and run metadata
     config={
     "syncnet_batch_size": hparams.syncnet_batch_size,
@@ -47,7 +47,7 @@ wandb.init(
     "syncnet_wt": hparams.syncnet_wt,
     "syncnet_checkpoint_interval": hparams.syncnet_checkpoint_interval,
     "syncnet_eval_interval": hparams.syncnet_eval_interval,
-    "architecture": "288x288 + sync loss + ms-ssim loss",
+    "architecture": "144x144",
     "dataset": "lrs2",
 })
 
@@ -278,7 +278,7 @@ if __name__ == "__main__":
 
     test_data_loader = data_utils.DataLoader(
         test_dataset, batch_size=hparams.syncnet_batch_size,
-        num_workers=8)
+        num_workers=hparams.num_workers)
 
     device = torch.device("cuda" if use_cuda else "cpu")
 

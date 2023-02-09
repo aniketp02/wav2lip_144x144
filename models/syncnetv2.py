@@ -9,16 +9,14 @@ class SyncNet_color(nn.Module):
         super(SyncNet_color, self).__init__()
 
         self.face_encoder = nn.Sequential(
-
-            Conv2d(15, 32, kernel_size=(7, 7), stride=1, padding=3),
+            Conv2d(15, 32, kernel_size=(7, 7), stride=1, padding=2),
             Conv2d(32, 32, kernel_size=5, stride=1, padding=1),
             Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
 
-            Conv2d(32, 64, kernel_size=5, stride=(1, 2), padding=1),
+            Conv2d(32, 64, kernel_size=5, stride=(1, 2), padding=2),
             Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
 
-            
             Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
             Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
@@ -32,11 +30,13 @@ class SyncNet_color(nn.Module):
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),
 
-            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            Conv2d(512, 512, kernel_size=3, stride=2, padding=2),
             Conv2d(512, 512, kernel_size=3, stride=2, padding=0),
-            Conv2d(512, 512, kernel_size=3, stride=1, padding=0),
-            Conv2d(512, 512, kernel_size=2, stride=1, padding=0),
-            Conv2d(512, 512, kernel_size=1, stride=1, padding=0),)
+            Conv2d(512, 512, kernel_size=1, stride=1, padding=0),
+
+            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            Conv2d(512, 512, kernel_size=1, stride=1, padding=0),
+            )
 
         self.audio_encoder = nn.Sequential(
             Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
@@ -77,7 +77,7 @@ class SyncNet_color(nn.Module):
 # sync_nxt = SyncNet_color()
 # mel = torch.rand(8, 1, 80, 16)
 # audio_sequences = torch.rand(5, 1, 80, 16)#indiv_mels
-# g = torch.rand(8, 15, 144, 288) #x
+# g = torch.rand(8, 15, 72, 144) #x
 
 # print(mel.shape)
 # print(g.shape)
