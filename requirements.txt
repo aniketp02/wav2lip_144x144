@@ -1,0 +1,8 @@
+librosa==0.7.0
+numpy==1.17.1
+opencv-contrib-python==4.6.0.66
+opencv-python==4.6.0.66
+torch==1.10.0+cu102 torchvision==0.11.0+cu102 torchaudio==0.10.0 -f https://download.pytorch.org/whl/torch_stable.html
+tqdm==4.45.0
+numba==0.48
+git+https://github.com/hukkelas/DSFD-Pytorch-Inference.git
