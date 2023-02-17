@@ -17,6 +17,9 @@ from glob import glob
 import os, random, cv2, argparse
 from hparams import hparams, get_image_list
 
+from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
+import wandb
+
 parser = argparse.ArgumentParser(description='Code to train the Wav2Lip model without the visual quality discriminator')
 
 parser.add_argument("--data_root", help="Root folder of the preprocessed LRS2 dataset", required=True, type=str)
@@ -36,6 +39,21 @@ print('use_cuda: {}'.format(use_cuda))
 
 syncnet_T = 5
 syncnet_mel_step_size = 16
+
+#initializing the wandb logs
+wandb.init(
+    # Set the project where this run will be logged
+    project="wav2lip 144x144 ms-ssim",
+    # Track hyperparameters and run metadata
+    config={
+    "batch_size": hparams.batch_size,
+    "learning_rate": hparams.initial_learning_rate,
+    "syncnet_wt": hparams.syncnet_wt,
+    "checkpoint_interval": hparams.checkpoint_interval,
+    "eval_interval": hparams.eval_interval,
+    "architecture": "sync loss + ms-ssim loss + 144x144 img size",
+    "dataset": "lrs2",
+})
 
 class Dataset(object):
     def __init__(self, split):
@@ -175,12 +193,20 @@ def save_sample_images(x, g, gt, global_step, checkpoint_dir):
     for batch_idx, c in enumerate(collage):
         for t in range(len(c)):
             cv2.imwrite('{}/{}_{}.jpg'.format(folder, batch_idx, t), c[t])
+            wandb_img = wandb.Image('{}/{}_{}.jpg'.format(folder, batch_idx, t), caption="{}_{}".format(batch_idx, t))
+            wandb.log({"{}".format(folder): wandb_img})
 
 logloss = nn.BCELoss()
 def cosine_loss(a, v, y):
     d = nn.functional.cosine_similarity(a, v)
     loss = logloss(d.unsqueeze(1), y)
 
+    return loss
+
+def msssim_loss(g, gt):
+    g, gt = g.reshape(-1, 3, hparams.img_size, hparams.img_size), gt.reshape(-1, 3, hparams.img_size, hparams.img_size)
+    loss = 1 - ms_ssim( g, gt, data_range=1, size_average=True, win_size=5)
+    #print(loss)
     return loss
 
 device = torch.device("cuda" if use_cuda else "cpu")
@@ -205,7 +231,7 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
  
     while global_epoch < nepochs:
         print('Starting Epoch: {}'.format(global_epoch))
-        running_sync_loss, running_l1_loss = 0., 0.
+        running_sync_loss, running_l1_loss, running_msssim_loss = 0., 0., 0.
         prog_bar = tqdm(enumerate(train_data_loader))
         for step, (x, indiv_mels, mel, gt) in prog_bar:
             model.train()
@@ -225,8 +251,10 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
                 sync_loss = 0.
 
             l1loss = recon_loss(g, gt)
+            msssimloss = msssim_loss(g, gt)
 
-            loss = hparams.syncnet_wt * sync_loss + (1 - hparams.syncnet_wt) * l1loss
+            loss = hparams.syncnet_wt * sync_loss + (1 - hparams.syncnet_wt) * msssimloss
+
             loss.backward()
             optimizer.step()
 
@@ -237,6 +265,8 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             cur_session_steps = global_step - resumed_step
 
             running_l1_loss += l1loss.item()
+            running_msssim_loss += msssimloss.item()
+
             if hparams.syncnet_wt > 0.:
                 running_sync_loss += sync_loss.item()
             else:
@@ -253,16 +283,18 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
                     if average_sync_loss < .75:
                         hparams.set_hparam('syncnet_wt', 0.01) # without image GAN a lesser weight is sufficient
 
-            prog_bar.set_description('L1: {}, Sync Loss: {}'.format(running_l1_loss / (step + 1),
-                                                                    running_sync_loss / (step + 1)))
+            prog_bar.set_description('L1: {}, Sync Loss: {}, SSIM Loss: {}'.format(running_l1_loss / (step + 1),
+                                        running_sync_loss / (step + 1), running_msssim_loss / (step + 1)))
+            wandb.log({"Train L1": running_l1_loss / (step + 1), "Train Sync Loss": running_sync_loss / (step + 1), 
+                        "Train SSIM Loss": running_msssim_loss / (step + 1)})
 
         global_epoch += 1
         
 
 def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
-    eval_steps = 700
+    eval_steps = 300
     print('Evaluating for {} steps'.format(eval_steps))
-    sync_losses, recon_losses = [], []
+    sync_losses, recon_losses, msssim_losses = [], [], []
     step = 0
     while 1:
         for x, indiv_mels, mel, gt in test_data_loader:
@@ -279,15 +311,19 @@ def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
 
             sync_loss = get_sync_loss(mel, g)
             l1loss = recon_loss(g, gt)
+            msssimloss = msssim_loss(g, gt)
 
             sync_losses.append(sync_loss.item())
             recon_losses.append(l1loss.item())
+            msssim_losses.append(msssimloss.item())
 
             if step > eval_steps: 
                 averaged_sync_loss = sum(sync_losses) / len(sync_losses)
                 averaged_recon_loss = sum(recon_losses) / len(recon_losses)
+                averaged_msssim_loss = sum(msssim_losses) / len(msssim_losses)
 
-                print('L1: {}, Sync loss: {}'.format(averaged_recon_loss, averaged_sync_loss))
+                print('L1: {}, Sync loss: {}, SSIM Loss'.format(averaged_recon_loss, averaged_sync_loss, averaged_msssim_loss))
+                wandb.log({"Eval L1": averaged_recon_loss, "Eval Sync loss": averaged_sync_loss, "Eval SSIM Loss": averaged_msssim_loss})
 
                 return averaged_sync_loss
 
@@ -348,7 +384,7 @@ if __name__ == "__main__":
 
     test_data_loader = data_utils.DataLoader(
         test_dataset, batch_size=hparams.batch_size,
-        num_workers=4)
+        num_workers=hparams.num_workers)
 
     device = torch.device("cuda" if use_cuda else "cpu")
 

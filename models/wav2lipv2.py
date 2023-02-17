@@ -10,7 +10,7 @@ class Wav2Lip(nn.Module):
         super(Wav2Lip, self).__init__()
 
         self.face_encoder_blocks = nn.ModuleList([
-            nn.Sequential(Conv2d(6, 16, kernel_size=7, stride=1, padding=3)), # 288, 288
+            nn.Sequential(Conv2d(6, 16, kernel_size=1, stride=1, padding=0)), # 288, 288
             
             nn.Sequential(Conv2d(16, 32, kernel_size=5, stride=2, padding=2),
             Conv2d(32, 32, kernel_size=3, stride=1, padding=1, residual=True),), # 144,144
@@ -38,8 +38,9 @@ class Wav2Lip(nn.Module):
             nn.Sequential(Conv2d(512, 512, kernel_size=3, stride=1, padding=0),     # 3, 3
             Conv2d(512, 512, kernel_size=1, stride=1, padding=0)),
             
-            nn.Sequential(Conv2d(512, 512, kernel_size=3, stride=1, padding=0),     # 1, 1
-            Conv2d(512, 512, kernel_size=1, stride=1, padding=0)),])
+            # nn.Sequential(Conv2d(512, 512, kernel_size=3, stride=1, padding=0),     # 1, 1
+            # Conv2d(512, 512, kernel_size=1, stride=1, padding=0)),
+            ])
 
         self.audio_encoder = nn.Sequential(
             Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
@@ -70,19 +71,19 @@ class Wav2Lip(nn.Module):
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),), # 5, 5
             
-            nn.Sequential(Conv2dTranspose(1024, 512, kernel_size=3, stride=2, padding=1),
+            nn.Sequential(Conv2dTranspose(768, 512, kernel_size=3, stride=2, padding=1),
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),), # 9, 9
 
-            nn.Sequential(Conv2dTranspose(768, 384, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.Sequential(Conv2dTranspose(640, 384, kernel_size=3, stride=2, padding=1, output_padding=1),
             Conv2d(384, 384, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(384, 384, kernel_size=3, stride=1, padding=1, residual=True),), # 18, 18
 
-            nn.Sequential(Conv2dTranspose(512, 256, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.Sequential(Conv2dTranspose(448, 256, kernel_size=3, stride=2, padding=1, output_padding=1),
             Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(256, 256, kernel_size=3, stride=1, padding=1, residual=True),), # 36, 36
 
-            nn.Sequential(Conv2dTranspose(320, 128, kernel_size=3, stride=2, padding=1, output_padding=1), 
+            nn.Sequential(Conv2dTranspose(288, 128, kernel_size=3, stride=2, padding=1, output_padding=1), 
             Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(128, 128, kernel_size=3, stride=1, padding=1, residual=True),), # 72, 72
 
@@ -90,9 +91,9 @@ class Wav2Lip(nn.Module):
             Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
             Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),), # 144,144
             
-            nn.Sequential(Conv2dTranspose(96, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
-            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
-            Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),), # 288,288
+            # nn.Sequential(Conv2dTranspose(96, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
+            # Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),
+            # Conv2d(64, 64, kernel_size=3, stride=1, padding=1, residual=True),), # 288,288
             ]) 
 
         self.output_block = nn.Sequential(Conv2d(80, 32, kernel_size=3, stride=1, padding=1),
@@ -215,7 +216,7 @@ class Wav2Lip_disc_qual(nn.Module):
 # audio_sequences = torch.rand(5, 1, 80, 16)#indiv_mels
 # audio_sequences_hq = torch.rand(16, 5, 1, 80, 16)#indiv_mels
 # face_sequences_x = torch.rand(5, 6, 288, 288) #x
-# face_sequences_x_hq = torch.rand(16, 6, 5, 288, 288) #x
+# face_sequences_x_hq = torch.rand(16, 6, 5, 144, 144) #x
 
 # face_sequences_gt = torch.rand(16, 3, 5, 288, 288) #gt
 
